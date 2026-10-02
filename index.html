@@ -376,7 +376,7 @@ function drawCover(){
  for(const q of objs){
    const {o,p}=q;visibleCover.push({o,p});
    if(o.type==='tree'){
-     const s=clamp(p.scale*4.5*o.s,8,120);
+     const s=clamp(p.scale*4.5*o.s,8,Math.max(120,H*1.05));
      const swayTree=Math.sin(performance.now()*.0015+o.x*.02+o.z*.015)*Math.min(10,Math.abs(wind)*1.15);
      ctx.fillStyle='#2d392a';ctx.fillRect(p.x-s*.10,p.y-s*1.15,s*.20,s*1.2);
      ctx.fillStyle='#203d27';
@@ -386,7 +386,7 @@ function drawCover(){
      ctx.fillStyle='#315331';
      ctx.beginPath();ctx.arc(p.x-s*.12+swayTree,p.y-s*1.48,s*.25,0,Math.PI*2);ctx.fill();
    }else{
-     const s=clamp(p.scale*5.8*o.s,7,115);
+     const s=clamp(p.scale*5.8*o.s,7,Math.max(115,H*.48));
      ctx.fillStyle='#3f4d3b';ctx.beginPath();ctx.ellipse(p.x,p.y-s*.12,s*.55,s*.38,0,Math.PI,Math.PI*2);ctx.fill();
      ctx.fillStyle='#53634d';ctx.beginPath();ctx.ellipse(p.x-s*.10,p.y-s*.18,s*.38,s*.22,-.15,Math.PI,Math.PI*2);ctx.fill();
    }
@@ -397,12 +397,12 @@ function coverBlocks(sx,sy,hitForward){
    if(c.p.forward>=hitForward)return false;
    const p=c.p;
    if(c.o.type==='tree'){
-     const s=clamp(p.scale*4.5*c.o.s,8,120);
+     const s=clamp(p.scale*4.5*c.o.s,8,Math.max(120,H*1.05));
      const trunk=sx>p.x-s*.12&&sx<p.x+s*.12&&sy>p.y-s*1.18&&sy<p.y+s*.06;
      const crown=Math.hypot((sx-p.x)/(s*.68),(sy-(p.y-s*1.3))/(s*.78))<=1;
      if(trunk||crown)return true;
    }else{
-     const s=clamp(p.scale*5.8*c.o.s,7,115);
+     const s=clamp(p.scale*5.8*c.o.s,7,Math.max(115,H*.48));
      const dx=(sx-p.x)/(s*.57),dy=(sy-(p.y-s*.13))/(s*.4);
      if(dx*dx+dy*dy<=1)return true;
    }
@@ -410,7 +410,7 @@ function coverBlocks(sx,sy,hitForward){
  return false;
 }
 
-function slimeSize(p){return clamp(p.scale*1.55,7,70)}
+function slimeSize(p){return clamp(p.scale*1.55,7,Math.max(70,H*.42))}
 function drawSlimes(now){
  const list=[];
  for(const t of targets){
@@ -439,10 +439,10 @@ function drawWorldFeatures(){
  for(const {f,p} of ordered){
    if(f.type==='pond'){
      const scale=clamp(p.scale,1,16),rx=f.rx*scale*.12,ry=f.rz*scale*.045;
-     ctx.save();ctx.globalAlpha=.74;ctx.fillStyle='#315f72';ctx.beginPath();ctx.ellipse(p.x,p.y+2,rx,Math.max(3,ry),0,0,Math.PI*2);ctx.fill();
+     ctx.save();ctx.globalAlpha=1;ctx.fillStyle='#315f72';ctx.beginPath();ctx.ellipse(p.x,p.y+2,rx,Math.max(3,ry),0,0,Math.PI*2);ctx.fill();
      ctx.globalAlpha=.32;ctx.strokeStyle='#9bcad8';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(p.x,p.y,rx*.82,Math.max(2,ry*.65),0,0,Math.PI*2);ctx.stroke();ctx.restore();
    }else if(f.type==='chest'){
-     const opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,92);
+     const opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,Math.max(92,H*.34));
      ctx.save();ctx.translate(p.x,p.y);
      ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.50,-sz*.42,sz,sz*.42);
      ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.54,-sz*.72,sz*1.08,sz*.31);
@@ -655,12 +655,41 @@ function resetJoy(){joyPointer=null;move.x=move.z=0;ui.stick.style.transform='tr
 
 ui.play.addEventListener('click',()=>{ui.start.style.display='none';running=true;reset();if(matchMedia('(pointer:fine)').matches&&canvas.requestPointerLock)canvas.requestPointerLock()});
 
+function blockedAt(x,z){
+ // Trees and rocks are solid.
+ for(const o of coverForNearbyChunks()){
+   const radius=o.type==='tree' ? 3.4+o.s*1.7 : 3.0+o.s*1.8;
+   if(Math.hypot(x-o.x,z-o.z)<radius)return true;
+ }
+
+ // Chests are also solid, open or closed.
+ for(const f of nearbyWorldFeatures()){
+   if(f.type!=='chest')continue;
+   if(Math.hypot(x-f.x,z-f.z)<3.8)return true;
+ }
+
+ return false;
+}
+
 function updateMovement(dt){
  let strafe=move.x,forward=move.z;
  if(keys.w||keys.arrowup)forward+=1;if(keys.s||keys.arrowdown)forward-=1;if(keys.a||keys.arrowleft)strafe-=1;if(keys.d||keys.arrowright)strafe+=1;
  const len=Math.hypot(strafe,forward);if(len>1){strafe/=len;forward/=len}
  const baseSpeed=player.crouch?13:(keys.shift?42:26),speed=baseSpeed*dt,s=Math.sin(player.yaw),c=Math.cos(player.yaw);
- player.x+=(strafe*c+forward*s)*speed;player.z+=(-strafe*s+forward*c)*speed;
+ const dx=(strafe*c+forward*s)*speed;
+ const dz=(-strafe*s+forward*c)*speed;
+ const nextX=player.x+dx,nextZ=player.z+dz;
+
+ if(!blockedAt(nextX,nextZ)){
+   player.x=nextX;player.z=nextZ;
+ }else{
+   // Slide around solid objects instead of passing through them.
+   // Try each movement axis separately and keep whichever side is open.
+   const canX=!blockedAt(player.x+dx,player.z);
+   const canZ=!blockedAt(player.x,player.z+dz);
+   if(canX)player.x+=dx;
+   if(canZ)player.z+=dz;
+ }
 
  // Terrain affects only a temporary visual tilt, never the player's aim pitch.
  const sample=8;
