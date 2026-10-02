@@ -567,7 +567,14 @@ function drawWorldScene(now){
 
    if(item.kind==='chest'){
      const f=item.f,opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,Math.max(92,H*.34));
-     ctx.save();ctx.translate(p.x,p.y);
+     ctx.save();
+
+     // Ground shadow: keeps the chest visually attached to the terrain.
+     ctx.fillStyle='rgba(0,0,0,.20)';
+     ctx.beginPath();ctx.ellipse(p.x,p.y+sz*.045,sz*.47,sz*.11,0,0,Math.PI*2);ctx.fill();
+
+     // Sink the chest very slightly into the ground.
+     ctx.translate(p.x,p.y+sz*.04);
      ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.50,-sz*.42,sz,sz*.42);
      ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.54,-sz*.72,sz*1.08,sz*.31);
      ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.055);ctx.strokeRect(-sz*.50,-sz*.42,sz,sz*.42);
@@ -576,6 +583,12 @@ function drawWorldScene(now){
    }else if(item.kind==='tree'){
      const o=item.o,s=clamp(p.scale*4.5*o.s,8,Math.max(120,H*1.05));
      const swayTree=Math.sin(now*.0015+o.x*.02+o.z*.015)*Math.min(10,Math.abs(wind)*1.15);
+
+     // Soft ground shadow under the planted trunk.
+     ctx.fillStyle='rgba(0,0,0,.17)';
+     ctx.beginPath();ctx.ellipse(p.x,p.y+s*.025,s*.28,s*.075,0,0,Math.PI*2);ctx.fill();
+
+     // Trunk already extends a little below the terrain line.
      ctx.fillStyle='#2d392a';ctx.fillRect(p.x-s*.10,p.y-s*1.15,s*.20,s*1.2);
      ctx.fillStyle='#203d27';
      ctx.beginPath();ctx.arc(p.x+swayTree,p.y-s*1.42,s*.45,0,Math.PI*2);ctx.fill();
@@ -585,14 +598,27 @@ function drawWorldScene(now){
      ctx.beginPath();ctx.arc(p.x-s*.12+swayTree,p.y-s*1.48,s*.25,0,Math.PI*2);ctx.fill();
    }else if(item.kind==='rock'){
      const o=item.o,s=clamp(p.scale*5.8*o.s,7,Math.max(115,H*.48));
-     ctx.fillStyle='#3f4d3b';ctx.beginPath();ctx.ellipse(p.x,p.y-s*.12,s*.55,s*.38,0,Math.PI,Math.PI*2);ctx.fill();
-     ctx.fillStyle='#53634d';ctx.beginPath();ctx.ellipse(p.x-s*.10,p.y-s*.18,s*.38,s*.22,-.15,Math.PI,Math.PI*2);ctx.fill();
+     const rockY=p.y+s*.035;
+
+     // Ground contact shadow.
+     ctx.fillStyle='rgba(0,0,0,.18)';
+     ctx.beginPath();ctx.ellipse(p.x,p.y+s*.035,s*.50,s*.10,0,0,Math.PI*2);ctx.fill();
+
+     // Slight sink keeps the rock planted instead of perched on the terrain line.
+     ctx.fillStyle='#3f4d3b';ctx.beginPath();ctx.ellipse(p.x,rockY-s*.12,s*.55,s*.38,0,Math.PI,Math.PI*2);ctx.fill();
+     ctx.fillStyle='#53634d';ctx.beginPath();ctx.ellipse(p.x-s*.10,rockY-s*.18,s*.38,s*.22,-.15,Math.PI,Math.PI*2);ctx.fill();
    }else if(item.kind==='slime'){
      const t=item.t,s=slimeSize(p);t.ss=s;
-     ctx.save();ctx.translate(p.x,p.y);
+     ctx.save();
+
+     // Slime contact shadow stays on the terrain.
+     ctx.fillStyle='rgba(0,0,0,.22)';
+     ctx.beginPath();ctx.ellipse(p.x,p.y+s*.025,s*.48,s*.12,0,0,Math.PI*2);ctx.fill();
+
+     // Body sits just slightly into the ground so it never looks detached.
+     ctx.translate(p.x,p.y+s*.025);
      const cols=[['#74d66a','#3c9b45'],['#76c7ef','#3488ba'],['#e89bdc','#af58a5'],['#e6c565','#b38d2f']][t.type];
      const g=ctx.createRadialGradient(-s*.18,-s*.34,s*.05,0,-s*.2,s*.75);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);
-     ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(0,1,s*.46,s*.12,0,0,Math.PI*2);ctx.fill();
      ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(-s*.48,0);ctx.bezierCurveTo(-s*.5,-s*.24,-s*.35,-s*.60,0,-s*.63);ctx.bezierCurveTo(s*.35,-s*.60,s*.5,-s*.24,s*.48,0);ctx.quadraticCurveTo(s*.28,s*.14,0,s*.10);ctx.quadraticCurveTo(-s*.28,s*.14,-s*.48,0);ctx.fill();
      if(s>13){ctx.fillStyle='#17201b';ctx.beginPath();ctx.arc(-s*.16,-s*.27,Math.max(1.1,s*.045),0,Math.PI*2);ctx.arc(s*.16,-s*.27,Math.max(1.1,s*.045),0,Math.PI*2);ctx.fill()}
      ctx.restore();
