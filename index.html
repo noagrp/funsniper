@@ -287,7 +287,17 @@ function drawHills(){
  const horizon=H*.47+player.pitch;
  const overscan=W*.28;
 
- // Far mountain layer: draw well beyond both viewport edges so no peak is ever cut in half.
+ // Very distant snowy mountain silhouettes.
+ ctx.fillStyle='rgba(184,199,196,.82)';
+ ctx.beginPath();ctx.moveTo(-overscan,H);
+ for(let x=-overscan;x<=W+overscan;x+=W/22){
+   const a=(x/W-.5)*2.15+player.yaw*.15;
+   const y=horizon-H*.17-Math.abs(Math.sin(a*2.2+player.z*.00035))*H*.075-Math.sin(a*5.1)*H*.018;
+   ctx.lineTo(x,y);
+ }
+ ctx.lineTo(W+overscan,H);ctx.closePath();ctx.fill();
+
+ // Far green mountain layer: draw well beyond both viewport edges so no peak is cut in half.
  ctx.fillStyle='#566a50';
  ctx.beginPath();
  ctx.moveTo(-overscan,H);
@@ -301,17 +311,6 @@ function drawHills(){
  ctx.lineTo(W+overscan,H);
  ctx.closePath();
  ctx.fill();
-
- // Snow caps on the higher distant ridges.
- ctx.save();ctx.fillStyle='rgba(226,235,232,.78)';
- for(let x=-overscan;x<=W+overscan;x+=W/8){
-   const a=(x/W-.5)*2.0+player.yaw*.18;
-   const y=horizon-H*.08-Math.sin(a*4.1+player.x*.001)*H*.035-Math.sin(a*8.2)*H*.018;
-   const peak=18+12*Math.abs(Math.sin(a*3.7));
-   ctx.beginPath();ctx.moveTo(x-34,y+peak);ctx.lineTo(x,y-10);ctx.lineTo(x+34,y+peak);
-   ctx.lineTo(x+12,y+peak*.45);ctx.lineTo(x,y+peak*.2);ctx.lineTo(x-12,y+peak*.48);ctx.closePath();ctx.fill();
- }
- ctx.restore();
 
  // Near hill layer: same overscan, slightly denser sampling for smoother rolling hills.
  ctx.fillStyle='#43573e';
@@ -362,8 +361,11 @@ function drawCover(){
      const swayTree=Math.sin(performance.now()*.0015+o.x*.02+o.z*.015)*Math.min(10,Math.abs(wind)*1.15);
      ctx.fillStyle='#2d392a';ctx.fillRect(p.x-s*.10,p.y-s*1.15,s*.20,s*1.2);
      ctx.fillStyle='#203d27';
-     ctx.beginPath();ctx.arc(p.x+swayTree,p.y-s*1.42,s*.45,0,Math.PI*2);ctx.arc(p.x-s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.arc(p.x+s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.fill();
-     ctx.fillStyle='#315331';ctx.beginPath();ctx.arc(p.x-s*.12+swayTree,p.y-s*1.48,s*.25,0,Math.PI*2);ctx.fill();
+     ctx.beginPath();ctx.arc(p.x+swayTree,p.y-s*1.42,s*.45,0,Math.PI*2);ctx.fill();
+     ctx.beginPath();ctx.arc(p.x-s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.fill();
+     ctx.beginPath();ctx.arc(p.x+s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.fill();
+     ctx.fillStyle='#315331';
+     ctx.beginPath();ctx.arc(p.x-s*.12+swayTree,p.y-s*1.48,s*.25,0,Math.PI*2);ctx.fill();
    }else{
      const s=clamp(p.scale*5.8*o.s,7,115);
      ctx.fillStyle='#3f4d3b';ctx.beginPath();ctx.ellipse(p.x,p.y-s*.12,s*.55,s*.38,0,Math.PI,Math.PI*2);ctx.fill();
@@ -421,12 +423,12 @@ function drawWorldFeatures(){
      ctx.save();ctx.globalAlpha=.74;ctx.fillStyle='#315f72';ctx.beginPath();ctx.ellipse(p.x,p.y+2,rx,Math.max(3,ry),0,0,Math.PI*2);ctx.fill();
      ctx.globalAlpha=.32;ctx.strokeStyle='#9bcad8';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(p.x,p.y,rx*.82,Math.max(2,ry*.65),0,0,Math.PI*2);ctx.stroke();ctx.restore();
    }else if(f.type==='chest'){
-     const opened=openedChests.has(f.key),sz=clamp(p.scale*2.3,7,36);
+     const opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,92);
      ctx.save();ctx.translate(p.x,p.y);
-     ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.48,-sz*.48,sz*.96,sz*.48);
-     ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.52,-sz*.78,sz*1.04,sz*.34);
-     ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.07);ctx.strokeRect(-sz*.48,-sz*.48,sz*.96,sz*.48);
-     ctx.fillStyle='#d5b564';ctx.fillRect(-sz*.06,-sz*.38,sz*.12,sz*.17);
+     ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.50,-sz*.42,sz,sz*.42);
+     ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.54,-sz*.72,sz*1.08,sz*.31);
+     ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.055);ctx.strokeRect(-sz*.50,-sz*.42,sz,sz*.42);
+     ctx.fillStyle='#d5b564';ctx.fillRect(-sz*.07,-sz*.30,sz*.14,sz*.16);
      ctx.restore();
    }
  }
@@ -439,7 +441,7 @@ function nearestChest(){
    const d=Math.hypot(f.x-player.x,f.z-player.z);
    if(d<bd){bd=d;best=f}
  }
- return best&&bd<8?best:null;
+ return best&&bd<14?best:null;
 }
 function openNearestChest(){
  const c=nearestChest();if(!c){setMessage('NO CHEST NEARBY',450);return}
@@ -658,6 +660,13 @@ function tick(now){
  drawFX(dt);drawNormalReticle();drawScope();
  if(running){
    updateRange();
+   const chest=nearestChest();
+   if(chest && !ui.message.classList.contains('show')){
+     ui.message.textContent='OPEN CHEST  [E]';
+     ui.message.classList.add('show');
+   }else if(!chest && ui.message.textContent==='OPEN CHEST  [E]'){
+     ui.message.classList.remove('show');
+   }
    if(waveDelay>0){waveDelay-=dt*1000;if(waveDelay<=0){wave++;startWave();updateUI()}}
  }
  requestAnimationFrame(tick);
