@@ -235,6 +235,24 @@ function drawCover(){
   }
 }
 
+function coverBlocks(sx,sy){
+  const z=scoped?SCOPE_ZOOM:1;
+  for(const c of cover){
+    const p=project(c.x,c.y),sc=c.s*z;
+    if(c.type==='tree'){
+      const trunk=(sx>=p.x-7*sc&&sx<=p.x+7*sc&&sy>=p.y-72*sc&&sy<=p.y+24*sc);
+      const crown1=Math.hypot(sx-p.x,sy-(p.y-78*sc))<=31*sc;
+      const crown2=Math.hypot(sx-(p.x-19*sc),sy-(p.y-59*sc))<=25*sc;
+      const crown3=Math.hypot(sx-(p.x+19*sc),sy-(p.y-59*sc))<=25*sc;
+      if(trunk||crown1||crown2||crown3)return true;
+    }else{
+      const dx=(sx-p.x)/(120*sc),dy=(sy-(p.y+45*sc))/(74*sc);
+      if(dy<=0&&dx*dx+dy*dy<=1)return true;
+    }
+  }
+  return false;
+}
+
 function drawParticles(dt){
   particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=180*dt;p.life-=dt*1000;
     ctx.globalAlpha=clamp(p.life/700,0,1);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()});
@@ -298,13 +316,19 @@ function shoot(){
     const dx=(impact.x-t.sx)/(s*.48),dy=(impact.y-(t.sy-s*.27))/(s*.42);
     if(dx*dx+dy*dy<=1){hit=t;break}
   }
+  const blocked=coverBlocks(impact.x,impact.y);
+  if(hit&&blocked){
+    hit=null;
+    shotFX.push({x:impact.x,y:impact.y,t:performance.now(),hit:false});
+    setMessage('BLOCKED',380);
+  }
   if(hit){
     hit.alive=false;hits++;
     const points=100+Math.max(0,Math.round((hit.distance-150)*.65))+wave*10;score+=points;
     burst(hit.sx,hit.sy-sizeFor(hit)*(scoped?SCOPE_ZOOM:1)*.22,hit.type);
     shotFX.push({x:impact.x,y:impact.y,t:performance.now(),hit:true});
     setMessage('HIT  +'+points,450);if(targets.every(t=>!t.alive))waveDelay=950;
-  }else{
+  }else if(!blocked){
     shotFX.push({x:impact.x,y:impact.y,t:performance.now(),hit:false});setMessage('MISS',320);
   }
   updateUI();
@@ -351,19 +375,28 @@ function toggleScope(){
   if(!scoped){
     const world=unproject(aim.x,aim.y);camera.x=world.x;camera.y=world.y;
     scoped=true;lastPointer=null;ui.scope.classList.add('active');
+    if(matchMedia('(pointer:fine)').matches&&canvas.requestPointerLock){
+      try{canvas.requestPointerLock()}catch(e){}
+    }
   }else{
     scoped=false;aim.x=W/2;aim.y=H/2;lastPointer=null;ui.scope.classList.remove('active');
+    if(document.pointerLockElement===canvas&&document.exitPointerLock)document.exitPointerLock();
   }
 }
 function onPointerMove(e){
   if(!running)return;
   if(scoped){
-    if(lastPointer){
-      const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;
-      camera.x+=dx/SCOPE_ZOOM*.95;camera.y+=dy/SCOPE_ZOOM*.95;
+    if(document.pointerLockElement===canvas){
+      camera.x+=e.movementX/SCOPE_ZOOM*.95;camera.y+=e.movementY/SCOPE_ZOOM*.95;
       camera.x=clamp(camera.x,-W*.25,W*1.25);camera.y=clamp(camera.y,H*.30,H*.82);
+    }else{
+      if(lastPointer){
+        const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;
+        camera.x+=dx/SCOPE_ZOOM*.95;camera.y+=dy/SCOPE_ZOOM*.95;
+        camera.x=clamp(camera.x,-W*.25,W*1.25);camera.y=clamp(camera.y,H*.30,H*.82);
+      }
+      lastPointer={x:e.clientX,y:e.clientY};
     }
-    lastPointer={x:e.clientX,y:e.clientY};
   }else{
     aim.x=e.clientX;aim.y=e.clientY;
   }
