@@ -173,13 +173,15 @@ function nearbyWorldFeatures(){
 
      // Do not place a chest inside nearby tree/rock cover.
      let blocked=false;
-     for(let k=0;k<5;k++){
-       const ox=ix*CHUNK+hash(ix,iz,k)*CHUNK;
-       const oz=iz*CHUNK+hash(ix,iz,k+20)*CHUNK;
-       const type=hash(ix,iz,k+40)<.78?'tree':'rock';
-       const os=type==='tree'?randSeed(ix,iz,k,1.0,1.65):randSeed(ix,iz,k+60,.8,1.45);
-       const radius=type==='tree'?7+os*2.2:6+os*2.4;
-       if(Math.hypot(x-ox,z-oz)<radius+5){blocked=true;break}
+     for(let nx=ix-1;nx<=ix+1&&!blocked;nx++)for(let nz=iz-1;nz<=iz+1&&!blocked;nz++){
+       for(let k=0;k<5;k++){
+         const ox=nx*CHUNK+hash(nx,nz,k)*CHUNK;
+         const oz=nz*CHUNK+hash(nx,nz,k+20)*CHUNK;
+         const type=hash(nx,nz,k+40)<.78?'tree':'rock';
+         const os=type==='tree'?randSeed(nx,nz,k,1.0,1.65):randSeed(nx,nz,k+60,.8,1.45);
+         const radius=type==='tree'?7+os*2.2:6+os*2.4;
+         if(Math.hypot(x-ox,z-oz)<radius+7){blocked=true;break}
+       }
      }
 
      if(!blocked)out.push({type:'chest',x,z,key:featureKey(ix,iz,'c')});
@@ -190,6 +192,14 @@ function nearbyWorldFeatures(){
 function nearestPonds(){
  return nearbyWorldFeatures().filter(f=>f.type==='pond');
 }
+function validSlimeSpawn(x,z){
+ if(worldObjectBlocked(x,z,3.2))return false;
+ for(const t of targets){
+   if(Math.hypot(x-t.x,z-t.z)<8)return false;
+ }
+ return true;
+}
+
 function startWave(){
  const count=Math.min(4+Math.floor(wave*.65),11),windLimit=Math.min(.5+wave*.42,6);
  wind=rand(-windLimit,windLimit);if(Math.abs(wind)<.2)wind=0;
@@ -206,6 +216,15 @@ function startWave(){
      const ang=rand(-1.15,1.15)+player.yaw;dist=rand(170+wave*10,360+wave*20);
      x=player.x+Math.sin(ang)*dist;z=player.z+Math.cos(ang)*dist;
    }
+   // Retry if this spawn sits inside another solid object.
+   for(let tries=0;tries<12&&!validSlimeSpawn(x,z);tries++){
+     const ang=rand(-1.35,1.35)+player.yaw;
+     dist=rand(175+wave*10,380+wave*20);
+     x=player.x+Math.sin(ang)*dist;
+     z=player.z+Math.cos(ang)*dist;
+   }
+   if(!validSlimeSpawn(x,z)){i--;continue}
+
    targets.push({x,z,distance:dist,phase:rand(0,Math.PI*2),speed:rand(.22,.55)+wave*.025,
      amp:rand(4,12),alive:true,type});
  }
@@ -287,20 +306,18 @@ function drawSky(now){
    ctx.beginPath();ctx.arc(mx,my,18,0,Math.PI*2);ctx.fill();ctx.restore();
  }
 
- // Clouds adapted from the cleaner Wind Field style:
- // one connected-looking mass made from five overlapping ellipses.
- // Drift is deliberately very slow.
+ // Wind Field-style clouds: solid five-part cloud masses with very slow drift.
  const cloudDir=wind<0?-1:1;
- const cloudDrift=now*.0022*cloudDir;
- for(let i=0;i<5;i++){
-   const baseX=hash(i,61,4)*W*1.45;
-   const y=H*(.075+hash(i,61,5)*.19);
-   const size=.48+hash(i,61,1)*.66;
-   const speed=.16+hash(i,61,3)*.18;
-   const x=((baseX+cloudDrift*speed)%(W+360)+W+360)%(W+360)-180;
+ const cloudDrift=now*.0011*cloudDir;
+ for(let i=0;i<7;i++){
+   const size=.62+hash(i,61,1)*1.20;
+   const baseX=(i/7)*W+hash(i,61,4)*230;
+   const y=36+hash(i,61,5)*Math.max(85,H*.15);
+   const speed=.08+Math.abs(wind)*.003;
+   const x=((baseX+cloudDrift*speed*W)%(W+360)+W+360)%(W+360)-180;
 
    ctx.save();
-   ctx.globalAlpha=(.34+hash(i,61,6)*.16)*(.66+.34*daylight);
+   ctx.globalAlpha=1;
    ctx.fillStyle=daylight>.35?'#ffffff':'#aebdcc';
 
    ctx.beginPath();ctx.ellipse(x,y,74*size,24*size,0,0,Math.PI*2);ctx.fill();
@@ -507,6 +524,94 @@ function drawWorldFeatures(){
      ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.54,-sz*.72,sz*1.08,sz*.31);
      ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.055);ctx.strokeRect(-sz*.50,-sz*.42,sz,sz*.42);
      ctx.fillStyle='#d5b564';ctx.fillRect(-sz*.07,-sz*.30,sz*.14,sz*.16);
+     ctx.restore();
+   }
+ }
+}
+
+function drawWorldScene(now){
+ visibleCover=[];
+ nearbyFeatures=nearbyWorldFeatures();
+ const items=[];
+
+ // Ground features.
+ for(const f of nearbyFeatures){
+   const p=project(f.x,f.z,terrainHeight(f.x,f.z));
+   if(!p||p.forward>VIEW_DISTANCE||p.x<-220||p.x>W+220)continue;
+   items.push({kind:f.type,f,p,depth:p.forward});
+ }
+
+ // Trees and rocks.
+ for(const o of coverForNearbyChunks()){
+   const p=project(o.x,o.z,terrainHeight(o.x,o.z));
+   if(!p||p.forward>VIEW_DISTANCE||p.x<-180||p.x>W+180)continue;
+   items.push({kind:o.type,o,p,depth:p.forward});
+   visibleCover.push({o,p});
+ }
+
+ // Slimes.
+ for(const t of targets){
+   if(!t.alive)continue;
+   let w=targetPos(t,now);
+   if(worldObjectBlocked(w.x,w.z,1.2))w={x:t.x,z:t.z};
+
+   const ground=terrainHeight(w.x,w.z);
+   const targetHeight=ground+.55;
+   if(terrainBlocksView(w.x,w.z,targetHeight))continue;
+
+   const p=project(w.x,w.z,targetHeight);
+   if(!p||p.forward>VIEW_DISTANCE||p.x<-120||p.x>W+120||p.y<-120||p.y>H+100)continue;
+
+   t.sx=p.x;t.sy=p.y;t.forward=p.forward;
+   t.currentDistance=Math.hypot(w.x-player.x,w.z-player.z);
+   items.push({kind:'slime',t,p,depth:p.forward});
+ }
+
+ // Painter's algorithm: farther world objects first, nearer objects last.
+ items.sort((a,b)=>b.depth-a.depth);
+
+ for(const item of items){
+   const p=item.p;
+
+   if(item.kind==='pond'){
+     const f=item.f;
+     const scale=clamp(p.scale,1,16),rx=f.rx*scale*.12,ry=f.rz*scale*.045;
+     ctx.save();
+     ctx.globalAlpha=1;ctx.fillStyle='#315f72';
+     ctx.beginPath();ctx.ellipse(p.x,p.y+2,rx,Math.max(3,ry),0,0,Math.PI*2);ctx.fill();
+     ctx.globalAlpha=.32;ctx.strokeStyle='#9bcad8';ctx.lineWidth=1;
+     ctx.beginPath();ctx.ellipse(p.x,p.y,rx*.82,Math.max(2,ry*.65),0,0,Math.PI*2);ctx.stroke();
+     ctx.restore();
+   }else if(item.kind==='chest'){
+     const f=item.f,opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,Math.max(92,H*.34));
+     ctx.save();ctx.translate(p.x,p.y);
+     ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.50,-sz*.42,sz,sz*.42);
+     ctx.fillStyle=opened?'#3b342d':'#9b7040';ctx.fillRect(-sz*.54,-sz*.72,sz*1.08,sz*.31);
+     ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.055);ctx.strokeRect(-sz*.50,-sz*.42,sz,sz*.42);
+     ctx.fillStyle='#d5b564';ctx.fillRect(-sz*.07,-sz*.30,sz*.14,sz*.16);
+     ctx.restore();
+   }else if(item.kind==='tree'){
+     const o=item.o,s=clamp(p.scale*4.5*o.s,8,Math.max(120,H*1.05));
+     const swayTree=Math.sin(now*.0015+o.x*.02+o.z*.015)*Math.min(10,Math.abs(wind)*1.15);
+     ctx.fillStyle='#2d392a';ctx.fillRect(p.x-s*.10,p.y-s*1.15,s*.20,s*1.2);
+     ctx.fillStyle='#203d27';
+     ctx.beginPath();ctx.arc(p.x+swayTree,p.y-s*1.42,s*.45,0,Math.PI*2);ctx.fill();
+     ctx.beginPath();ctx.arc(p.x-s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.fill();
+     ctx.beginPath();ctx.arc(p.x+s*.30+swayTree*.7,p.y-s*1.15,s*.36,0,Math.PI*2);ctx.fill();
+     ctx.fillStyle='#315331';
+     ctx.beginPath();ctx.arc(p.x-s*.12+swayTree,p.y-s*1.48,s*.25,0,Math.PI*2);ctx.fill();
+   }else if(item.kind==='rock'){
+     const o=item.o,s=clamp(p.scale*5.8*o.s,7,Math.max(115,H*.48));
+     ctx.fillStyle='#3f4d3b';ctx.beginPath();ctx.ellipse(p.x,p.y-s*.12,s*.55,s*.38,0,Math.PI,Math.PI*2);ctx.fill();
+     ctx.fillStyle='#53634d';ctx.beginPath();ctx.ellipse(p.x-s*.10,p.y-s*.18,s*.38,s*.22,-.15,Math.PI,Math.PI*2);ctx.fill();
+   }else if(item.kind==='slime'){
+     const t=item.t,s=slimeSize(p);t.ss=s;
+     ctx.save();ctx.translate(p.x,p.y);
+     const cols=[['#74d66a','#3c9b45'],['#76c7ef','#3488ba'],['#e89bdc','#af58a5'],['#e6c565','#b38d2f']][t.type];
+     const g=ctx.createRadialGradient(-s*.18,-s*.34,s*.05,0,-s*.2,s*.75);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);
+     ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(0,1,s*.46,s*.12,0,0,Math.PI*2);ctx.fill();
+     ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(-s*.48,0);ctx.bezierCurveTo(-s*.5,-s*.24,-s*.35,-s*.60,0,-s*.63);ctx.bezierCurveTo(s*.35,-s*.60,s*.5,-s*.24,s*.48,0);ctx.quadraticCurveTo(s*.28,s*.14,0,s*.10);ctx.quadraticCurveTo(-s*.28,s*.14,-s*.48,0);ctx.fill();
+     if(s>13){ctx.fillStyle='#17201b';ctx.beginPath();ctx.arc(-s*.16,-s*.27,Math.max(1.1,s*.045),0,Math.PI*2);ctx.arc(s*.16,-s*.27,Math.max(1.1,s*.045),0,Math.PI*2);ctx.fill()}
      ctx.restore();
    }
  }
@@ -765,7 +870,7 @@ function updateMovement(dt){
 function tick(now){
  const dt=Math.min((now-last)/1000,.035);last=now;
  if(running){updateMovement(dt);worldTime=(worldTime+dt/180)%1}
- drawSky(now);drawHills();drawGroundGrid();drawWorldFeatures();drawSlimes(now);drawCover();drawAmbient(now);
+ drawSky(now);drawHills();drawGroundGrid();drawWorldScene(now);drawAmbient(now);
 
  if(scoped){sway.x=Math.sin(now*.0013)*1.05+Math.sin(now*.00061)*.65;sway.y=Math.cos(now*.0011)*.9;recoil*=.82}
  else{sway.x=Math.sin(now*.0011)*.3;sway.y=Math.cos(now*.001)*.25;recoil*=.7}
