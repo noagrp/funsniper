@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#11161c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FunSniper">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <title>FunSniper — Slime Hunt</title>
 <style>
 :root{color-scheme:dark;--panel:rgba(9,14,18,.76);--line:rgba(255,255,255,.16);--accent:#d7ff73}
@@ -164,10 +170,6 @@ function featureKey(ix,iz,k){return ix+','+iz+','+k}
 function nearbyWorldFeatures(){
  const out=[],cx=Math.floor(player.x/CHUNK),cz=Math.floor(player.z/CHUNK);
  for(let ix=cx-3;ix<=cx+3;ix++)for(let iz=cz-3;iz<=cz+3;iz++){
-   if(hash(ix,iz,101)>.62){
-     const x=ix*CHUNK+hash(ix,iz,102)*CHUNK,z=iz*CHUNK+hash(ix,iz,103)*CHUNK;
-     out.push({type:'pond',x,z,rx:28+hash(ix,iz,104)*34,rz:18+hash(ix,iz,105)*26,key:featureKey(ix,iz,'p')});
-   }
    if(hash(ix,iz,111)>.72){
      const x=ix*CHUNK+hash(ix,iz,112)*CHUNK,z=iz*CHUNK+hash(ix,iz,113)*CHUNK;
 
@@ -189,9 +191,6 @@ function nearbyWorldFeatures(){
  }
  return out;
 }
-function nearestPonds(){
- return nearbyWorldFeatures().filter(f=>f.type==='pond');
-}
 function validSlimeSpawn(x,z){
  if(worldObjectBlocked(x,z,3.2))return false;
  for(const t of targets){
@@ -204,18 +203,11 @@ function startWave(){
  const count=Math.min(4+Math.floor(wave*.65),11),windLimit=Math.min(.5+wave*.42,6);
  wind=rand(-windLimit,windLimit);if(Math.abs(wind)<.2)wind=0;
  targets=[];
- const ponds=nearestPonds();
  for(let i=0;i<count;i++){
    const type=Math.floor(rand(0,4));
    let x,z,dist;
-   if(type===1&&ponds.length&&Math.random()<.72){
-     const p=ponds[Math.floor(Math.random()*ponds.length)];
-     const a=rand(0,Math.PI*2),r=rand(4,Math.min(p.rx,p.rz)*.8);
-     x=p.x+Math.cos(a)*r;z=p.z+Math.sin(a)*r;dist=Math.hypot(x-player.x,z-player.z);
-   }else{
-     const ang=rand(-1.15,1.15)+player.yaw;dist=rand(170+wave*10,360+wave*20);
-     x=player.x+Math.sin(ang)*dist;z=player.z+Math.cos(ang)*dist;
-   }
+   const ang=rand(-1.15,1.15)+player.yaw;dist=rand(170+wave*10,360+wave*20);
+   x=player.x+Math.sin(ang)*dist;z=player.z+Math.cos(ang)*dist;
    // Retry if this spawn sits inside another solid object.
    for(let tries=0;tries<12&&!validSlimeSpawn(x,z);tries++){
      const ang=rand(-1.35,1.35)+player.yaw;
@@ -573,16 +565,7 @@ function drawWorldScene(now){
  for(const item of items){
    const p=item.p;
 
-   if(item.kind==='pond'){
-     const f=item.f;
-     const scale=clamp(p.scale,1,16),rx=f.rx*scale*.12,ry=f.rz*scale*.045;
-     ctx.save();
-     ctx.globalAlpha=1;ctx.fillStyle='#315f72';
-     ctx.beginPath();ctx.ellipse(p.x,p.y+2,rx,Math.max(3,ry),0,0,Math.PI*2);ctx.fill();
-     ctx.globalAlpha=.32;ctx.strokeStyle='#9bcad8';ctx.lineWidth=1;
-     ctx.beginPath();ctx.ellipse(p.x,p.y,rx*.82,Math.max(2,ry*.65),0,0,Math.PI*2);ctx.stroke();
-     ctx.restore();
-   }else if(item.kind==='chest'){
+   if(item.kind==='chest'){
      const f=item.f,opened=openedChests.has(f.key),sz=clamp(p.scale*5.2,10,Math.max(92,H*.34));
      ctx.save();ctx.translate(p.x,p.y);
      ctx.fillStyle=opened?'#4a4036':'#76532f';ctx.fillRect(-sz*.50,-sz*.42,sz,sz*.42);
@@ -891,6 +874,12 @@ function tick(now){
 }
 requestAnimationFrame(tick);
 })();
+
+if('serviceWorker' in navigator){
+ window.addEventListener('load',()=>{
+   navigator.serviceWorker.register('./sw.js').catch(()=>{});
+ });
+}
 </script>
 </body>
 </html>
