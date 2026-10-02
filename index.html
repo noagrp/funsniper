@@ -89,7 +89,7 @@ button{font:inherit;color:inherit}
     <p class="sub">Slime Hunt • Prototype 03</p>
     <p>The range is now explorable. Walk in any direction, scan the field, scope in and hunt distant Slimes. The world continuously generates scenery around you.</p>
     <div class="legend">
-      <b>Desktop</b><span>WASD move • mouse look • right click / S scope • left click fire</span>
+      <b>Desktop</b><span>WASD move • mouse look • right click / Q scope • left click fire</span>
       <b>Phone</b><span>Left joystick move • drag right side to look • SCOPE / FIRE buttons</span>
     </div>
     <button id="play">START HUNT</button>
@@ -360,19 +360,36 @@ function setScope(on){
 }
 function toggleScope(){setScope(!scoped)}
 function applyLook(dx,dy,sens=1){
- const mul=scoped?.00085:.0017;player.yaw+=dx*mul*sens;player.pitch=clamp(player.pitch+dy*(scoped?.34:.5)*sens,-H*.18,H*.22);
+ const mul=scoped?.00085:.0017;
+ // FPS mouse-look: move mouse right -> look right, move mouse down -> look down.
+ player.yaw-=dx*mul*sens;
+ player.pitch=clamp(player.pitch-dy*(scoped?.34:.5)*sens,-H*.18,H*.22);
 }
 function desktopPointerMove(e){
  if(!running||matchMedia('(pointer:coarse)').matches)return;
  if(document.pointerLockElement===canvas)applyLook(e.movementX,e.movementY);
 }
-canvas.addEventListener('click',e=>{
+canvas.addEventListener('mousedown',e=>{
  if(!running||matchMedia('(pointer:coarse)').matches)return;
- if(document.pointerLockElement!==canvas&&canvas.requestPointerLock){canvas.requestPointerLock();return}
- shoot();
+ if(e.button===2){
+   e.preventDefault();
+   toggleScope();
+   if(document.pointerLockElement!==canvas&&canvas.requestPointerLock){
+     try{canvas.requestPointerLock()}catch(err){}
+   }
+   return;
+ }
+ if(e.button===0){
+   e.preventDefault();
+   if(document.pointerLockElement!==canvas&&canvas.requestPointerLock){
+     try{canvas.requestPointerLock()}catch(err){}
+     return;
+   }
+   shoot();
+ }
 });
 canvas.addEventListener('mousemove',desktopPointerMove);
-canvas.addEventListener('contextmenu',e=>{e.preventDefault();toggleScope()});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==='s'&&e.ctrlKey===false&&e.metaKey===false&&e.altKey===false){}if(e.key==='Shift')keys.shift=true;if(e.key.toLowerCase()==='q')toggleScope();if(e.key.toLowerCase()==='r')reset()});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;if(e.key==='Shift')keys.shift=false});
