@@ -316,10 +316,6 @@ function drawScope(){
  ctx.fillStyle='rgba(245,248,242,.9)';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText('WIND '+dirWind(),cx,cy+r-28);ctx.restore();
 }
 function aimPoint(){return{x:W/2+sway.x,y:H/2+sway.y+recoil}}
-function drawCrosshair(){
- const a=aimPoint();ctx.save();ctx.strokeStyle=scoped?'rgba(18,18,18,.96)':'rgba(255,255,255,.88)';ctx.lineWidth=scoped?1.05:1.45;
- const gap=scoped?12:7,len=scoped?46:18;ctx.beginPath();ctx.moveTo(a.x-len,a.y);ctx.lineTo(a.x-gap,a.y);ctx.moveTo(a.x+gap,a.y);ctx.lineTo(a.x+len,a.y);ctx.moveTo(a.x,a.y-len);ctx.lineTo(a.x,a.y-gap);ctx.moveTo(a.x,a.y+gap);ctx.lineTo(a.x,a.y+len);ctx.stroke();ctx.restore();
-}
 function drawFX(dt){
  particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=170*dt;p.life-=dt*1000;ctx.globalAlpha=clamp(p.life/650,0,1);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()});
  ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);
@@ -446,7 +442,7 @@ function tick(now){
  if(scoped){sway.x=Math.sin(now*.0013)*1.05+Math.sin(now*.00061)*.65;sway.y=Math.cos(now*.0011)*.9;recoil*=.82}
  else{sway.x=Math.sin(now*.0011)*.3;sway.y=Math.cos(now*.001)*.25;recoil*=.7}
 
- drawFX(dt);drawScope();drawCrosshair();
+ drawFX(dt);drawScope();
  if(running){
    updateRange();
    if(waveDelay>0){waveDelay-=dt*1000;if(waveDelay<=0){wave++;startWave();updateUI()}}
