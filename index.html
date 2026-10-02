@@ -206,21 +206,23 @@ function worldToView(x,z){
 }
 function project(x,z,height=null){
  const v=worldToView(x,z);
- if(v.forward<2)return null;
 
- // Keep perspective stable near the camera. Objects still grow as they approach,
- // but scale no longer becomes unstable in the final few metres.
- const depth=Math.max(6,v.forward);
+ // Normal perspective all the way in.
+ // Once an object is extremely close / passing the player, stop drawing it
+ // instead of clamping depth and making it appear to shrink or float.
+ if(v.forward<=4)return null;
+
  const focal=(W*.78)*(scoped?SCOPE_ZOOM:1);
  const horizon=H*.47+player.pitch+terrainTilt;
  const camY=terrainHeight(player.x,player.z)+(player.crouch?CROUCH_H:STAND_H)+player.y;
  const worldY=height===null?terrainHeight(x,z):height;
 
  return{
-   x:W/2+(v.side/depth)*focal,
-   y:horizon+((camY-worldY)/depth)*focal,
-   scale:focal/depth,
-   forward:v.forward,side:v.side
+   x:W/2+(v.side/v.forward)*focal,
+   y:horizon+((camY-worldY)/v.forward)*focal,
+   scale:focal/v.forward,
+   forward:v.forward,
+   side:v.side
  };
 }
 function targetPos(t,time){
