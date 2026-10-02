@@ -268,22 +268,37 @@ function drawSky(now){
    ctx.beginPath();ctx.arc(mx,my,18,0,Math.PI*2);ctx.fill();ctx.restore();
  }
 
- const drift=now*.004+player.yaw*90;
- for(let i=0;i<6;i++){
-   const cw=W*(.15+hash(i,61,1)*.18),ch=H*(.035+hash(i,61,2)*.035);
-   const speed=.12+hash(i,61,3)*.24;
-   const cx=((hash(i,61,4)*W*1.5+drift*speed)%(W*1.55))-W*.22;
-   const cy=H*(.08+hash(i,61,5)*.20);
-   ctx.save();ctx.globalAlpha=(.10+hash(i,61,6)*.12)*(.55+.45*daylight);
-   ctx.fillStyle=daylight>.35?'#f3f5ef':'#aeb9c9';
-   const puffCount=7;
-   for(let p=0;p<puffCount;p++){
-     const ox=(hash(i,p,71)-.5)*cw*.82;
-     const oy=(hash(i,p,72)-.5)*ch*.55;
-     const rx=cw*(.13+hash(i,p,73)*.14);
-     const ry=ch*(.32+hash(i,p,74)*.36);
-     ctx.beginPath();ctx.ellipse(cx+ox,cy+oy,rx,ry,hash(i,p,75)*.35,0,Math.PI*2);ctx.fill();
+ // Slow, irregular cloud layers drawn directly in the sky routine.
+ const drift=now*.00012+player.yaw*18;
+ for(let i=0;i<5;i++){
+   const cw=W*(.13+hash(i,61,1)*.16);
+   const ch=H*(.028+hash(i,61,2)*.030);
+   const speed=.28+hash(i,61,3)*.42;
+   const cx=((hash(i,61,4)*W*1.65+drift*W*speed)%(W*1.9))-W*.30;
+   const cy=H*(.07+hash(i,61,5)*.21);
+
+   ctx.save();
+   ctx.globalAlpha=(.07+hash(i,61,6)*.10)*(.55+.45*daylight);
+   ctx.fillStyle=daylight>.35?'#f5f6f2':'#aeb8c6';
+
+   // Main uneven puff cluster.
+   for(let p=0;p<9;p++){
+     const ox=(hash(i,p,71)-.5)*cw*.92;
+     const oy=(hash(i,p,72)-.5)*ch*.48;
+     const rx=cw*(.09+hash(i,p,73)*.12);
+     const ry=ch*(.24+hash(i,p,74)*.30);
+     const rot=(hash(i,p,75)-.5)*.34;
+     ctx.beginPath();
+     ctx.ellipse(cx+ox,cy+oy,rx,ry,rot,0,Math.PI*2);
+     ctx.fill();
    }
+
+   // Soft lower haze so the cloud reads as one mass instead of separate ovals.
+   ctx.globalAlpha*=.42;
+   ctx.beginPath();
+   ctx.ellipse(cx,cy+ch*.12,cw*.40,ch*.34,0,0,Math.PI*2);
+   ctx.fill();
+
    ctx.restore();
  }
  ui.timeOfDay.textContent=daylight>.65?'DAY':daylight>.2?'DUSK':'NIGHT';
