@@ -377,8 +377,9 @@ function setScope(on){
 function toggleScope(){setScope(!scoped)}
 function applyLook(dx,dy,sens=1){
  const mul=scoped?.00085:.0017;
- // FPS mouse-look: move mouse right -> look right, move mouse down -> look down.
- player.yaw-=dx*mul*sens;
+ // FPS mouse-look matched to this projection:
+ // mouse right -> look right, mouse up -> look up.
+ player.yaw+=dx*mul*sens;
  player.pitch=clamp(player.pitch-dy*(scoped?.34:.5)*sens,-H*.18,H*.22);
 }
 function desktopPointerMove(e){
