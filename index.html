@@ -537,11 +537,7 @@ function drawWorldScene(now){
  for(const o of coverForNearbyChunks()){
    const p=project(o.x,o.z,terrainHeight(o.x,o.z));
    if(!p||p.forward>VIEW_DISTANCE||p.x<-180||p.x>W+180)continue;
-   if(o.type==='tree'){
-     items.push({kind:'treeCover',o,p,depth:p.forward});
-   }else{
-     items.push({kind:o.type,o,p,depth:p.forward});
-   }
+   items.push({kind:o.type,o,p,depth:p.forward});
    visibleCover.push({o,p});
  }
 
@@ -563,13 +559,9 @@ function drawWorldScene(now){
    items.push({kind:'slime',t,p,depth:p.forward});
  }
 
- // Normal painter's algorithm for world objects, but trees are always
- // a final foreground-cover layer so Slimes never paint over tree trunks/canopies.
- items.sort((a,b)=>{
-   const at=a.kind==='treeCover',bt=b.kind==='treeCover';
-   if(at!==bt)return at?1:-1;
-   return b.depth-a.depth;
- });
+ // True painter's algorithm: farther objects first, nearer objects last.
+ // This keeps trees, chests, rocks and Slimes layered by their real camera distance.
+ items.sort((a,b)=>b.depth-a.depth);
 
  for(const item of items){
    const p=item.p;
@@ -589,7 +581,7 @@ function drawWorldScene(now){
      ctx.strokeStyle='#2b241d';ctx.lineWidth=Math.max(1,sz*.055);ctx.strokeRect(-sz*.50,-sz*.42,sz,sz*.42);
      ctx.fillStyle='#d5b564';ctx.fillRect(-sz*.07,-sz*.30,sz*.14,sz*.16);
      ctx.restore();
-   }else if(item.kind==='treeCover'){
+   }else if(item.kind==='tree'){
      const o=item.o,s=clamp(p.scale*4.5*o.s,8,Math.max(120,H*1.05));
      const swayTree=Math.sin(now*.0015+o.x*.02+o.z*.015)*Math.min(10,Math.abs(wind)*1.15);
 
