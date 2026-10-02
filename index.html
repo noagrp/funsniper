@@ -195,21 +195,37 @@ function drawSky(now){
 
 function drawHills(){
  const horizon=H*.47+player.pitch;
- ctx.fillStyle='#566a50';ctx.beginPath();ctx.moveTo(0,H);
- for(let x=0;x<=W;x+=W/18){
-   const a=(x/W-.5)*2.0+player.yaw*.18;
-   const y=horizon-H*.08-Math.sin(a*4.1+player.x*.001)*H*.035-Math.sin(a*8.2)*H*.018;
-   ctx.lineTo(x,y);
- }
- ctx.lineTo(W,H);ctx.fill();
+ const overscan=W*.28;
 
- ctx.fillStyle='#43573e';ctx.beginPath();ctx.moveTo(0,H);
- for(let x=0;x<=W;x+=W/22){
-   const a=(x/W-.5)*2.3+player.yaw*.22;
-   const y=horizon+H*.035-Math.sin(a*5.3+1.6+player.z*.0012)*H*.025;
+ // Far mountain layer: draw well beyond both viewport edges so no peak is ever cut in half.
+ ctx.fillStyle='#566a50';
+ ctx.beginPath();
+ ctx.moveTo(-overscan,H);
+ for(let x=-overscan;x<=W+overscan;x+=W/26){
+   const a=(x/W-.5)*2.0+player.yaw*.18;
+   const y=horizon-H*.08
+     -Math.sin(a*4.1+player.x*.001)*H*.035
+     -Math.sin(a*8.2)*H*.018;
    ctx.lineTo(x,y);
  }
- ctx.lineTo(W,H);ctx.fill();
+ ctx.lineTo(W+overscan,H);
+ ctx.closePath();
+ ctx.fill();
+
+ // Near hill layer: same overscan, slightly denser sampling for smoother rolling hills.
+ ctx.fillStyle='#43573e';
+ ctx.beginPath();
+ ctx.moveTo(-overscan,H);
+ for(let x=-overscan;x<=W+overscan;x+=W/30){
+   const a=(x/W-.5)*2.3+player.yaw*.22;
+   const y=horizon+H*.035
+     -Math.sin(a*5.3+1.6+player.z*.0012)*H*.025
+     -Math.sin(a*2.7+player.x*.0008)*H*.012;
+   ctx.lineTo(x,y);
+ }
+ ctx.lineTo(W+overscan,H);
+ ctx.closePath();
+ ctx.fill();
 }
 
 function drawGroundGrid(){
