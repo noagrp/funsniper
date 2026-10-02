@@ -126,7 +126,7 @@ let wave=1,score=0,shots=0,hits=0,wind=0,messageTimer=0,waveDelay=0,hp=100,ammo=
 let player={x:0,z:0,yaw:0,pitch:0,y:0,vy:0,crouch:false};
 let move={x:0,z:0},keys={},lookPointer=null,joyPointer=null;
 let targets=[],particles=[],shotFX=[],visibleCover=[];
-let sway={x:0,y:0},recoil=0;
+let sway={x:0,y:0},recoil=0,terrainTilt=0;
 let worldTime=.30;
 let ambientLeaves=[];
 let openedChests=new Set();
@@ -158,7 +158,7 @@ function updateUI(){
 }
 function reset(){
  wave=1;score=0;shots=0;hits=0;waveDelay=0;hp=100;ammo=12;openedChests=new Set();player={x:0,z:0,yaw:0,pitch:0,y:0,vy:0,crouch:false};targets=[];particles=[];shotFX=[];
- scoped=false;ui.scope.classList.remove('active');ui.mScope.classList.remove('active');startWave();updateUI();
+ terrainTilt=0;scoped=false;ui.scope.classList.remove('active');ui.mScope.classList.remove('active');startWave();updateUI();
 }
 function featureKey(ix,iz,k){return ix+','+iz+','+k}
 function nearbyWorldFeatures(){
@@ -205,15 +205,21 @@ function worldToView(x,z){
  return{side:dx*c-dz*s,forward:dx*s+dz*c};
 }
 function project(x,z,height=null){
- const v=worldToView(x,z);if(v.forward<5)return null;
+ const v=worldToView(x,z);
+ if(v.forward<2)return null;
+
+ // Keep perspective stable near the camera. Objects still grow as they approach,
+ // but scale no longer becomes unstable in the final few metres.
+ const depth=Math.max(6,v.forward);
  const focal=(W*.78)*(scoped?SCOPE_ZOOM:1);
- const horizon=H*.47+player.pitch;
+ const horizon=H*.47+player.pitch+terrainTilt;
  const camY=terrainHeight(player.x,player.z)+(player.crouch?CROUCH_H:STAND_H)+player.y;
  const worldY=height===null?terrainHeight(x,z):height;
+
  return{
-   x:W/2+(v.side/v.forward)*focal,
-   y:horizon+((camY-worldY)/v.forward)*focal,
-   scale:focal/v.forward,
+   x:W/2+(v.side/depth)*focal,
+   y:horizon+((camY-worldY)/depth)*focal,
+   scale:focal/depth,
    forward:v.forward,side:v.side
  };
 }
@@ -641,10 +647,16 @@ function updateMovement(dt){
  if(keys.w||keys.arrowup)forward+=1;if(keys.s||keys.arrowdown)forward-=1;if(keys.a||keys.arrowleft)strafe-=1;if(keys.d||keys.arrowright)strafe+=1;
  const len=Math.hypot(strafe,forward);if(len>1){strafe/=len;forward/=len}
  const baseSpeed=player.crouch?13:(keys.shift?42:26),speed=baseSpeed*dt,s=Math.sin(player.yaw),c=Math.cos(player.yaw);
- const oldGround=terrainHeight(player.x,player.z);
  player.x+=(strafe*c+forward*s)*speed;player.z+=(-strafe*s+forward*c)*speed;
- const newGround=terrainHeight(player.x,player.z);
- if(player.y<=.001&&!scoped)player.pitch=clamp(player.pitch+(oldGround-newGround)*1.6,-H*.18,H*.22);
+
+ // Terrain affects only a temporary visual tilt, never the player's aim pitch.
+ const sample=8;
+ const groundHere=terrainHeight(player.x,player.z);
+ const groundAhead=terrainHeight(player.x+Math.sin(player.yaw)*sample,player.z+Math.cos(player.yaw)*sample);
+ const slope=(groundAhead-groundHere)/sample;
+ const targetTilt=scoped?0:clamp(slope*H*.30,-H*.028,H*.028);
+ terrainTilt+=(targetTilt-terrainTilt)*Math.min(1,dt*5.5);
+
  player.vy-=12.5*dt;player.y+=player.vy*dt;
  if(player.y<0){player.y=0;player.vy=0}
 }
