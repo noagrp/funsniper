@@ -206,23 +206,28 @@ function worldToView(x,z){
 }
 function project(x,z,height=null){
  const v=worldToView(x,z);
+ const dx=x-player.x;
+ const dz=z-player.z;
+ const distance=Math.hypot(dx,dz);
 
- // Normal perspective all the way in.
- // Once an object is extremely close / passing the player, stop drawing it
- // instead of clamping depth and making it appear to shrink or float.
- if(v.forward<=4)return null;
+ // Hide only after the object has actually passed behind the player
+ // or is essentially inside the camera.
+ if(v.forward<=2 || distance<=2)return null;
 
  const focal=(W*.78)*(scoped?SCOPE_ZOOM:1);
  const horizon=H*.47+player.pitch+terrainTilt;
  const camY=terrainHeight(player.x,player.z)+(player.crouch?CROUCH_H:STAND_H)+player.y;
  const worldY=height===null?terrainHeight(x,z):height;
 
+ // Position still uses perspective depth, but SIZE uses real player distance.
+ // Therefore: physically closer = always bigger.
  return{
    x:W/2+(v.side/v.forward)*focal,
    y:horizon+((camY-worldY)/v.forward)*focal,
-   scale:focal/v.forward,
+   scale:focal/Math.max(2,distance),
    forward:v.forward,
-   side:v.side
+   side:v.side,
+   distance
  };
 }
 function targetPos(t,time){
