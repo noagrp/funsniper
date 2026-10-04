@@ -521,7 +521,7 @@ function drawWorldFeatures(){
  }
 }
 
-function drawWorldScene(now){
+function drawWorldScene(now,dt){
  visibleCover=[];
  nearbyFeatures=nearbyWorldFeatures();
  const items=[];
@@ -544,6 +544,30 @@ function drawWorldScene(now){
  // Slimes.
  for(const t of targets){
    if(!t.alive)continue;
+
+   // Open-world catch-up behavior:
+   // if a surviving Slime is left far behind, its anchor position moves toward the player.
+   // Nearby Slimes keep their normal wandering motion.
+   const anchorDx=player.x-t.x,anchorDz=player.z-t.z;
+   const anchorDist=Math.hypot(anchorDx,anchorDz);
+
+   if(anchorDist>300){
+     const chaseSpeed=anchorDist>650?34:anchorDist>480?26:18;
+     const step=Math.min(anchorDist-230,chaseSpeed*dt);
+     const nx=t.x+(anchorDx/anchorDist)*step;
+     const nz=t.z+(anchorDz/anchorDist)*step;
+
+     if(!worldObjectBlocked(nx,nz,1.4)){
+       t.x=nx;t.z=nz;
+     }else{
+       // Slide around solid scenery instead of passing through it.
+       const tryX=t.x+(anchorDx/anchorDist)*step;
+       const tryZ=t.z+(anchorDz/anchorDist)*step;
+       if(!worldObjectBlocked(tryX,t.z,1.4))t.x=tryX;
+       if(!worldObjectBlocked(t.x,tryZ,1.4))t.z=tryZ;
+     }
+   }
+
    let w=targetPos(t,now);
    if(worldObjectBlocked(w.x,w.z,1.2))w={x:t.x,z:t.z};
 
@@ -884,7 +908,7 @@ function updateMovement(dt){
 function tick(now){
  const dt=Math.min((now-last)/1000,.035);last=now;
  if(running){updateMovement(dt);worldTime=(worldTime+dt/180)%1}
- drawSky(now);drawHills();drawGroundGrid();drawWorldScene(now);drawAmbient(now);
+ drawSky(now);drawHills();drawGroundGrid();drawWorldScene(now,dt);drawAmbient(now);
 
  if(scoped){sway.x=Math.sin(now*.0013)*1.05+Math.sin(now*.00061)*.65;sway.y=Math.cos(now*.0011)*.9;recoil*=.82}
  else{sway.x=Math.sin(now*.0011)*.3;sway.y=Math.cos(now*.001)*.25;recoil*=.7}
