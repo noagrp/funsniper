@@ -40,21 +40,31 @@ button{font:inherit;color:inherit}
 .legend b{color:#fff}
 
 #mobileUI{display:none;position:fixed;inset:0;pointer-events:none;z-index:8}
-#joystick{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(20px,env(safe-area-inset-bottom));width:126px;height:126px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(10,15,18,.28);backdrop-filter:blur(5px);pointer-events:auto;touch-action:none}
-#stick{position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(235,244,245,.22);border:1px solid rgba(255,255,255,.32)}
+#joystick{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:calc(env(safe-area-inset-bottom) + 24px);width:clamp(100px,30vw,126px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(10,15,18,.28);backdrop-filter:blur(5px);pointer-events:auto;touch-action:none}
+#stick{position:absolute;left:50%;top:50%;width:43%;height:43%;border-radius:50%;transform:translate(-50%,-50%);background:rgba(235,244,245,.22);border:1px solid rgba(255,255,255,.32);pointer-events:none}
 #lookZone{position:absolute;right:0;top:18%;width:58%;height:62%;pointer-events:auto;touch-action:none}
-.mobile-actions{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:9px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end;max-width:180px}
-.mobile-actions .ctrl{min-width:74px;height:52px}
-.mobile-actions #mFire{background:rgba(112,24,22,.9)}
-#hintPhone{display:none;position:absolute;right:14px;bottom:80px;font-size:10px;color:rgba(255,255,255,.7);text-shadow:0 2px 6px #000}
-
-@media (pointer:coarse),(max-width:760px){
+.mobile-actions{position:absolute;right:max(10px,env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom) + 18px);width:clamp(148px,46vw,210px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:radial-gradient(circle,rgba(24,38,47,.45),rgba(8,16,23,.30));backdrop-filter:blur(4px);pointer-events:none;touch-action:none}
+.mobile-actions .ctrl{position:absolute;display:grid;place-items:center;transform:translate(-50%,-50%);width:29%;min-width:0;height:auto;aspect-ratio:1;border-radius:50%;padding:0 2px;font-size:clamp(9px,2.6vw,12px);line-height:1.1;letter-spacing:0;pointer-events:auto;touch-action:none;white-space:nowrap}
+.mobile-actions #mDuck{left:25%;top:25%}
+.mobile-actions #mOpen{left:75%;top:25%}
+.mobile-actions #mJump{left:25%;top:75%}
+.mobile-actions #mScope{left:75%;top:75%}
+.mobile-actions #mFire{left:50%;top:50%;width:39%;background:rgba(140,35,31,.92);border-color:rgba(255,170,158,.65);font-size:clamp(11px,3.1vw,15px);z-index:1}
+.mobile-actions .ctrl:active{transform:translate(-50%,-50%) scale(.95)}
+#hintPhone{display:none;position:absolute;right:16px;top:42%;font-size:10px;color:rgba(255,255,255,.7);text-shadow:0 2px 6px #000;pointer-events:none}
+/* Only touch-first phones and tablets get the virtual controls. */
+@media (pointer:coarse) and (hover:none){
  #mobileUI{display:block}
  .controls{display:none}
  .info{display:none}
  .pill{font-size:10px;padding:6px 8px}
  .top{max-width:78vw}
  #hintPhone{display:block}
+}
+@media (pointer:coarse) and (hover:none) and (max-height:480px){
+ #joystick{bottom:calc(env(safe-area-inset-bottom) + 10px);width:clamp(86px,25vw,112px)}
+ .mobile-actions{bottom:calc(env(safe-area-inset-bottom) + 8px);width:clamp(132px,36vw,178px)}
+ #hintPhone{display:none}
 }
 </style>
 </head>
@@ -86,12 +96,12 @@ button{font:inherit;color:inherit}
   <div id="joystick"><div id="stick"></div></div>
   <div id="lookZone"></div>
   <div id="hintPhone">DRAG HERE TO LOOK</div>
-  <div class="mobile-actions">
-    <button class="ctrl" id="mOpen">OPEN</button>
-    <button class="ctrl" id="mJump">JUMP</button>
-    <button class="ctrl" id="mDuck">DUCK</button>
-    <button class="ctrl" id="mScope">SCOPE</button>
-    <button class="ctrl" id="mFire">FIRE</button>
+  <div class="mobile-actions" aria-label="Touch action controls">
+    <button class="ctrl" id="mDuck" aria-label="Duck">DUCK</button>
+    <button class="ctrl" id="mOpen" aria-label="Open nearby chest">OPEN</button>
+    <button class="ctrl" id="mFire" aria-label="Fire">FIRE</button>
+    <button class="ctrl" id="mJump" aria-label="Jump">JUMP</button>
+    <button class="ctrl" id="mScope" aria-label="Toggle scope">SCOPE</button>
   </div>
 </div>
 
@@ -103,7 +113,7 @@ button{font:inherit;color:inherit}
     <p>Walk in any direction, explore the field, scope in and hunt distant Slimes. The world continuously generates scenery around you.</p>
     <div class="legend">
       <b>Desktop</b><span>WASD move • Space jump • C/Ctrl duck • mouse look • right click / Q scope • left click fire</span>
-      <b>Phone</b><span>Left joystick move • drag right side to look • JUMP / DUCK / SCOPE / FIRE</span>
+      <b>Phone</b><span>Left joystick move • drag right side to look • circular FIRE / SCOPE / OPEN / DUCK / JUMP</span>
     </div>
     <button id="play">START HUNT</button>
   </div>
@@ -838,6 +848,7 @@ bindButton(ui.openChest,openNearestChest);bindButton(ui.mOpen,openNearestChest);
 bindButton(ui.mJump,tryJump);
 ui.mDuck.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();setDuck(true)});
 ui.mDuck.addEventListener('pointerup',e=>{e.preventDefault();setDuck(false)});
+ui.mDuck.addEventListener('lostpointercapture',()=>setDuck(false));
 ui.mDuck.addEventListener('pointercancel',()=>setDuck(false));
 
 ui.lookZone.addEventListener('pointerdown',e=>{e.preventDefault();lookPointer={id:e.pointerId,x:e.clientX,y:e.clientY};ui.lookZone.setPointerCapture(e.pointerId)});
@@ -855,7 +866,7 @@ function updateJoy(e){
 }
 function resetJoy(){joyPointer=null;move.x=move.z=0;ui.stick.style.transform='translate(-50%,-50%)'}
 
-ui.play.addEventListener('click',()=>{ui.start.style.display='none';running=true;reset();if(matchMedia('(pointer:fine)').matches&&canvas.requestPointerLock)canvas.requestPointerLock()});
+ui.play.addEventListener('click',()=>{ui.start.style.display='none';running=true;reset();if(matchMedia('(pointer:fine) and (hover:hover)').matches&&canvas.requestPointerLock)canvas.requestPointerLock()});
 
 function blockedAt(x,z){
  // Trees and rocks are solid.
