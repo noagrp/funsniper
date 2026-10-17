@@ -51,7 +51,6 @@ button{font:inherit;color:inherit}
 .mobile-actions #mScope{left:75%;top:75%}
 .mobile-actions #mFire{left:50%;top:50%;width:39%;background:rgba(140,35,31,.92);border-color:rgba(255,170,158,.65);font-size:clamp(11px,3.1vw,15px);z-index:1}
 .mobile-actions .ctrl:active{transform:translate(-50%,-50%) scale(.95)}
-#hintPhone{display:none;position:absolute;right:16px;top:42%;font-size:10px;color:rgba(255,255,255,.7);text-shadow:0 2px 6px #000;pointer-events:none}
 /* Only touch-first phones and tablets get the virtual controls. */
 @media (pointer:coarse) and (hover:none){
  #mobileUI{display:block}
@@ -59,12 +58,10 @@ button{font:inherit;color:inherit}
  .info{display:none}
  .pill{font-size:10px;padding:6px 8px}
  .top{max-width:78vw}
- #hintPhone{display:block}
 }
 @media (pointer:coarse) and (hover:none) and (max-height:480px){
  #joystick{bottom:calc(env(safe-area-inset-bottom) + 10px);width:clamp(86px,25vw,112px)}
  .mobile-actions{bottom:calc(env(safe-area-inset-bottom) + 8px);width:clamp(132px,36vw,178px)}
- #hintPhone{display:none}
 }
 </style>
 </head>
@@ -95,7 +92,6 @@ button{font:inherit;color:inherit}
 <div id="mobileUI">
   <div id="joystick"><div id="stick"></div></div>
   <div id="lookZone"></div>
-  <div id="hintPhone">DRAG HERE TO LOOK</div>
   <div class="mobile-actions" aria-label="Touch action controls">
     <button class="ctrl" id="mDuck" aria-label="Duck">DUCK</button>
     <button class="ctrl" id="mOpen" aria-label="Open nearby chest">OPEN</button>
