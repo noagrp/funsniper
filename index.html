@@ -212,12 +212,12 @@ function startWave(){
  for(let i=0;i<count;i++){
    const type=Math.floor(rand(0,4));
    let x,z,dist;
-   const ang=rand(-1.15,1.15)+player.yaw;dist=rand(170+wave*10,360+wave*20);
+   const ang=rand(-1.15,1.15)+player.yaw;dist=rand(85+wave*3,155+wave*6);
    x=player.x+Math.sin(ang)*dist;z=player.z+Math.cos(ang)*dist;
    // Retry if this spawn sits inside another solid object.
    for(let tries=0;tries<12&&!validSlimeSpawn(x,z);tries++){
      const ang=rand(-1.35,1.35)+player.yaw;
-     dist=rand(175+wave*10,380+wave*20);
+     dist=rand(90+wave*3,165+wave*6);
      x=player.x+Math.sin(ang)*dist;
      z=player.z+Math.cos(ang)*dist;
    }
@@ -557,7 +557,7 @@ function drawWorldScene(now,dt){
    const dist=Math.hypot(dx,dz);
    const previousX=t.x,previousZ=t.z;
    if(dist>7.5){
-     const pace=(5.5+Math.min(wave,15)*.48+t.speed*4);
+     const pace=(17+Math.min(wave,15)*.65+t.speed*5);
      const step=Math.min(Math.max(0,dist-7),pace*dt);
      const heading=Math.atan2(dx,dz);
      const angles=[0,.45,-.45,.95,-.95,1.5,-1.5,Math.PI];
@@ -571,7 +571,7 @@ function drawWorldScene(now,dt){
    }
    t.moveAmount=Math.hypot(t.x-previousX,t.z-previousZ)/Math.max(dt,.001);
    if(t.moveAmount>.1)t.facing=Math.atan2(t.x-previousX,t.z-previousZ);
-   t.hop+=dt*(t.moveAmount>.1?8.5:2.3);
+   t.hop+=dt*(t.moveAmount>.1?5:1.5);
    t.attackCooldown-=dt;
    if(dist<11&&t.attackCooldown<=0&&running&&hp>0){
      const damage=4+Math.min(8,Math.floor(wave/2));
@@ -666,12 +666,12 @@ function drawWorldScene(now,dt){
      // Animated hop and squash/stretch communicate forward locomotion.
      // The shadow stays grounded while the body lifts off the terrain.
      const moving=t.moveAmount>.1;
-     const hop=Math.max(0,Math.sin(t.hop));
-     const lift=moving?hop*s*.23:Math.sin(t.hop)*s*.025;
-     const squash=moving?(1-hop)*.13:Math.sin(t.hop)*.035;
+     const pulse=Math.sin(t.hop);
+     const lift=0; // Slimes slide over terrain rather than bouncing in place.
+     const squash=moving?pulse*.035:Math.sin(t.hop)*.012;
      const relative=Math.sin(t.facing-player.yaw);
      ctx.translate(p.x+relative*s*.045,p.y+s*.025-lift);
-     ctx.rotate(moving?relative*.13:Math.sin(t.hop)*.025);
+     ctx.rotate(moving?relative*.055:Math.sin(t.hop)*.012);
      ctx.scale(1+squash,1-squash);
      const cols=[['#74d66a','#3c9b45'],['#76c7ef','#3488ba'],['#e89bdc','#af58a5'],['#e6c565','#b38d2f']][t.type];
      const g=ctx.createRadialGradient(-s*.18,-s*.34,s*.05,0,-s*.2,s*.75);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);
