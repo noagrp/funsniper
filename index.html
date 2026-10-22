@@ -224,7 +224,7 @@ function startWave(){
    if(!validSlimeSpawn(x,z)){i--;continue}
 
    targets.push({x,z,distance:dist,phase:rand(0,Math.PI*2),speed:rand(.22,.55)+wave*.025,
-     amp:rand(4,12),alive:true,type});
+     amp:rand(4,12),alive:true,type,attackCooldown:rand(.4,1.5),hop:rand(0,6.28),facing:0,moveAmount:0});
  }
  setMessage('WAVE '+wave,850);
 }
@@ -474,7 +474,7 @@ function drawSlimes(now){
  const list=[];
  for(const t of targets){
    if(!t.alive)continue;
-   let w=targetPos(t,now);
+   let w={x:t.x,z:t.z};
 
    // Slimes cannot pass through trees, rocks or chests.
    if(worldObjectBlocked(w.x,w.z,1.2)){
@@ -551,32 +551,45 @@ function drawWorldScene(now,dt){
  for(const t of targets){
    if(!t.alive)continue;
 
-   // Open-world catch-up behavior:
-   // if a surviving Slime is left far behind, its anchor position moves toward the player.
-   // Nearby Slimes keep their normal wandering motion.
-   const anchorDx=player.x-t.x,anchorDz=player.z-t.z;
-   const anchorDist=Math.hypot(anchorDx,anchorDz);
-
-   if(anchorDist>300){
-     const chaseSpeed=anchorDist>650?34:anchorDist>480?26:18;
-     const step=Math.min(anchorDist-230,chaseSpeed*dt);
-     const nx=t.x+(anchorDx/anchorDist)*step;
-     const nz=t.z+(anchorDz/anchorDist)*step;
-
-     if(!worldObjectBlocked(nx,nz,1.4)){
-       t.x=nx;t.z=nz;
-     }else{
-       // Slide around solid scenery instead of passing through it.
-       const tryX=t.x+(anchorDx/anchorDist)*step;
-       const tryZ=t.z+(anchorDz/anchorDist)*step;
-       if(!worldObjectBlocked(tryX,t.z,1.4))t.x=tryX;
-       if(!worldObjectBlocked(t.x,tryZ,1.4))t.z=tryZ;
+   // Persistent pursuit: approach the player from any direction, steering
+   // around obstacles rather than only catching up when far away.
+   const dx=player.x-t.x,dz=player.z-t.z;
+   const dist=Math.hypot(dx,dz);
+   const previousX=t.x,previousZ=t.z;
+   if(dist>7.5){
+     const pace=(5.5+Math.min(wave,15)*.48+t.speed*4);
+     const step=Math.min(Math.max(0,dist-7),pace*dt);
+     const heading=Math.atan2(dx,dz);
+     const angles=[0,.45,-.45,.95,-.95,1.5,-1.5,Math.PI];
+     for(const turn of angles){
+       const angle=heading+turn;
+       const nx=t.x+Math.sin(angle)*step,nz=t.z+Math.cos(angle)*step;
+       if(!worldObjectBlocked(nx,nz,2.0)){
+         t.x=nx;t.z=nz;break;
+       }
      }
    }
-
-   let w=targetPos(t,now);
-   if(worldObjectBlocked(w.x,w.z,1.2))w={x:t.x,z:t.z};
-
+   t.moveAmount=Math.hypot(t.x-previousX,t.z-previousZ)/Math.max(dt,.001);
+   if(t.moveAmount>.1)t.facing=Math.atan2(t.x-previousX,t.z-previousZ);
+   t.hop+=dt*(t.moveAmount>.1?8.5:2.3);
+   t.attackCooldown-=dt;
+   if(dist<11&&t.attackCooldown<=0&&running&&hp>0){
+     const damage=4+Math.min(8,Math.floor(wave/2));
+     hp=Math.max(0,hp-damage);
+     t.attackCooldown=1.35+rand(0,.55);
+     setMessage('SLIME ATTACK  -'+damage+' HP',550);
+     updateUI();
+     if(hp<=0){
+       running=false;
+       ui.start.style.display='grid';
+       ui.start.querySelector('h1').textContent='GAME OVER';
+       ui.start.querySelector('.sub').textContent='Score '+score+' · Wave '+wave;
+       ui.play.textContent='RESTART HUNT';
+       if(document.pointerLockElement)document.exitPointerLock();
+     }
+   }
+   const w={x:t.x,z:t.z};
+   
    const ground=terrainHeight(w.x,w.z);
    const targetHeight=ground+.55;
    if(terrainBlocksView(w.x,w.z,targetHeight))continue;
@@ -650,8 +663,16 @@ function drawWorldScene(now,dt){
      ctx.fillStyle='rgba(0,0,0,.22)';
      ctx.beginPath();ctx.ellipse(p.x,p.y+s*.025,s*.48,s*.12,0,0,Math.PI*2);ctx.fill();
 
-     // Body sits just slightly into the ground so it never looks detached.
-     ctx.translate(p.x,p.y+s*.025);
+     // Animated hop and squash/stretch communicate forward locomotion.
+     // The shadow stays grounded while the body lifts off the terrain.
+     const moving=t.moveAmount>.1;
+     const hop=Math.max(0,Math.sin(t.hop));
+     const lift=moving?hop*s*.23:Math.sin(t.hop)*s*.025;
+     const squash=moving?(1-hop)*.13:Math.sin(t.hop)*.035;
+     const relative=Math.sin(t.facing-player.yaw);
+     ctx.translate(p.x+relative*s*.045,p.y+s*.025-lift);
+     ctx.rotate(moving?relative*.13:Math.sin(t.hop)*.025);
+     ctx.scale(1+squash,1-squash);
      const cols=[['#74d66a','#3c9b45'],['#76c7ef','#3488ba'],['#e89bdc','#af58a5'],['#e6c565','#b38d2f']][t.type];
      const g=ctx.createRadialGradient(-s*.18,-s*.34,s*.05,0,-s*.2,s*.75);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);
      ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(-s*.48,0);ctx.bezierCurveTo(-s*.5,-s*.24,-s*.35,-s*.60,0,-s*.63);ctx.bezierCurveTo(s*.35,-s*.60,s*.5,-s*.24,s*.48,0);ctx.quadraticCurveTo(s*.28,s*.14,0,s*.10);ctx.quadraticCurveTo(-s*.28,s*.14,-s*.48,0);ctx.fill();
